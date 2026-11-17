@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BSU Document</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f6f8;
+      color: #1f2937;
+    }
+    .viewer {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .status {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 24px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 28px 32px;
+      max-width: 440px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    .card h1 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .card p {
+      margin: 0;
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 10px 18px;
+      background: #1d4ed8;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="status">
+    <div class="card">
+      <h1>Loading document...</h1>
+      <p>Please wait.</p>
+    </div>
+  </div>
+
+  <script>
+    (async function () {
+      const app = document.getElementById('app');
+
+      function showMessage(title, text, actionUrl, actionLabel) {
+        app.className = 'status';
+        app.innerHTML = '';
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const h1 = document.createElement('h1');
+        h1.textContent = title;
+        card.appendChild(h1);
+
+        const p = document.createElement('p');
+        p.textContent = text;
+        card.appendChild(p);
+
+        if (actionUrl && actionLabel) {
+          const a = document.createElement('a');
+          a.className = 'btn';
+          a.href = actionUrl;
+          a.textContent = actionLabel;
+          card.appendChild(a);
+        }
+
+        app.appendChild(card);
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const key = params.get('key');
+
+      if (!key) {
+        showMessage('Document Portal', 'No document key provided.');
+        return;
+      }
+
+      try {
+        const mapRes = await fetch('/docs.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!mapRes.ok) {
+          showMessage('Unavailable', 'Document registry could not be loaded.');
+          return;
+        }
+
+        const docs = await mapRes.json();
+        const filePath = docs[key];
+
+        if (!filePath) {
+          showMessage('Document Not Found', 'No document is associated with this key.');
+          return;
+        }
+
+        const pdfUrl = '/' + filePath.replace(/^\/+/, '');
+        const headRes = await fetch(pdfUrl + '?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' });
+
+        if (!headRes.ok) {
+          showMessage('Document Pending', 'The document file has not been uploaded yet.');
+          return;
+        }
+
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.replace(pdfUrl);
+          return;
+        }
+
+        app.className = '';
+        app.style.width = '100%';
+        app.style.height = '100%';
+        app.innerHTML = '';
+
+        const iframe = document.createElement('iframe');
+        iframe.className = 'viewer';
+        iframe.src = pdfUrl;
+        iframe.title = 'BSU Document';
+        app.appendChild(iframe);
+      } catch (err) {
+        showMessage('Error', 'Unable to load the requested document.');
+      }
+    })();
+  </script>
+</body>
+</html>
